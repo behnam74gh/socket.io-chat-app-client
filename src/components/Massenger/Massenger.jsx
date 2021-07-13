@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import queryString from "query-string";
 import io from "socket.io-client";
 import ReactEmoji from "react-emoji";
@@ -14,6 +14,8 @@ const Massenger = ({ location, history }) => {
   const [users, setUsers] = useState([]);
 
   const ENDPOINT = process.env.SOCKETIOENDPOINT || "localhost:5000";
+
+  const messageWrapperRef = useRef();
 
   useEffect(() => {
     const { userName: name, room: group } = queryString.parse(location.search);
@@ -39,6 +41,8 @@ const Massenger = ({ location, history }) => {
   useEffect(() => {
     socket.on("message", (message) => {
       setMessages([...messages, message]);
+      const msgWrapperHeight = messageWrapperRef.current;
+      msgWrapperHeight.scrollTop = msgWrapperHeight.scrollHeight;
     });
 
     socket.on("roomData", (data) => {
@@ -53,7 +57,11 @@ const Massenger = ({ location, history }) => {
     e.preventDefault();
 
     if (message.length > 0) {
-      socket.emit("sendMessage", message, () => setMessage(""));
+      socket.emit("sendMessage", message, ({ errorMessage }) =>
+        errorMessage && errorMessage.length > 0
+          ? alert(errorMessage)
+          : setMessage("")
+      );
     }
   };
 
@@ -71,7 +79,7 @@ const Massenger = ({ location, history }) => {
             نام گپ :<strong className="mx-1">{room}</strong>
           </span>
         )}
-        <h5>اعضای گپ {room.length > 0 && room}</h5>
+        <h5>اعضایِ فعال</h5>
         <ul className="users">
           <li>{userName.length > 0 && userName}</li>
           {users.length > 0 &&
@@ -80,24 +88,41 @@ const Massenger = ({ location, history }) => {
               .map((userItem, i) => <li key={i}>{userItem.name}</li>)}
         </ul>
       </aside>
-      <main className="massenger_body">
+      <main className="massenger_body" ref={messageWrapperRef}>
         {messages.length > 0 &&
           messages.map((singleMessage, i) => (
             <div
               key={i}
               className="message_wrapper"
               style={{
-                background: singleMessage.user === userName && "#d1e1f9",
+                background:
+                  singleMessage.user === userName
+                    ? "#3f7dd8"
+                    : singleMessage.user === "مدیر :" && "rgba(0,0,0,0.7)",
+                color:
+                  singleMessage.user === userName
+                    ? "#ffffff"
+                    : singleMessage.user === userName
+                    ? "#000"
+                    : singleMessage.user === "مدیر :" && "#ffffff",
                 alignSelf:
                   singleMessage.user === userName ||
-                  singleMessage.user === "مدیر گپ :"
+                  singleMessage.user === "مدیر :"
                     ? "flex-start"
                     : "flex-end",
               }}
             >
               <div className="author_info">
                 <strong>{singleMessage.user}</strong>
-                <span className="message_time">
+                <span
+                  className="message_time"
+                  style={{
+                    color:
+                      (singleMessage.user === userName ||
+                        singleMessage.user === "مدیر :") &&
+                      "#ffffff",
+                  }}
+                >
                   {new Date(singleMessage.time).toLocaleString("fa", {
                     minute: "numeric",
                     hour: "numeric",
